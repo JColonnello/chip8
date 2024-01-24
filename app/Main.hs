@@ -1,46 +1,20 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE RankNTypes #-}
 module Main where
 
-import Control.Monad.Trans.State
+import Control.Monad.Trans.State as State
 import Control.Lens
-import GHC.Data.Maybe
-import Control.Monad
-
-type MemState = [(String, Int)]
-clearMemState :: MemState
-clearMemState = []
-
-type Mem a = State MemState a
-
-runMem :: Mem a -> a
-runMem m = evalState m []
-
-clear :: Mem ()
-clear = put clearMemState
-
-getVar :: String -> Mem Int
-getVar v = do
-    m <- get
-    let value = lookup v m
-    return $ orElse value 0
-
-setVar :: String -> Int -> Mem ()
-setVar v i = modify (recordarRep v i)
-
-
-
-recordarRep v n [] = [(v,n)]
-recordarRep v n ((v',n'):vns) =
-    if v==v'
-    then (v',n) : vns
-    else (v',n') : recordarRep v n vns
+import Implementations.SimpleMemory
+import Memory
+import Data.Word
+import Data.ByteString as BS
+import Data.ByteString.Char8 as BS.C8
+import Prelude as P
 
 newtype EmulatorData = EmulatorData { _mem :: MemState }
 makeLenses ''EmulatorData
 
 clearEmulatorData :: EmulatorData
-clearEmulatorData = EmulatorData clearMemState
+clearEmulatorData = EmulatorData Memory.init
 
 type Emulator a = State EmulatorData a
 
@@ -50,14 +24,22 @@ resetEmulator = put clearEmulatorData
 runEmulator :: Emulator a -> IO a
 runEmulator emulator = return $ evalState emulator clearEmulatorData
 
-emulatorMain :: Emulator Int
+-- emulatorMain :: Emulator String
 emulatorMain = do
-    zoom mem $ setVar "a" 1
-    zoom mem $ setVar "b" 3
-    zoom mem $ sum <$> sequence (getVar <$> ["a","b"])
+    -- zoom mem $ Memory.set 0 1
+    -- zoom mem $ Memory.set 1 3
+    -- zoom mem $ sum <$> sequence (Memory.get <$> [1])
+    m <- (^.mem) <$> State.get
+    return $ show m
+    -- zoom mem $ Memory.get 0
 
 main :: IO ()
 main = do
-    putStrLn "Hello, Haskell!"
-    i <- runEmulator emulatorMain
+    bs <- BS.readFile "test.bin"
+    BS.C8.putStrLn bs
+    i <- runEmulator $ do 
+        zoom mem $ Memory.load 0 bs
+        emulatorMain
+    P.putStrLn "End"
     print i
+    
