@@ -1,13 +1,15 @@
+{-# LANGUAGE FunctionalDependencies #-}
 module Memory where
 
 import Data.ByteString
 import Data.Word
+import Control.Monad.State.Class
 
-class MemoryState ms where
-    init :: ms
+class MemoryState s where
+    init :: s
 
-class Memory mem where
-    empty :: mem ()
-    load :: Word16 -> ByteString -> mem ()
-    get :: Word16 -> mem Word8
-    set :: Word16 -> Word8 -> mem ()
+class (MemoryState s, MonadState s m) => Memory m s | s -> m where
+    empty :: m ()
+    load :: Word16 -> ByteString -> m ()
+    get :: Word16 -> m Word8
+    set :: Word16 -> Word8 -> m ()

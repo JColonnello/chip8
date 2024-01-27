@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Implementations.SimpleMemory (
     MemState
 ) where
@@ -20,7 +21,7 @@ instance MemoryState MemState where
 
 type SimpleMem = State MemState
 
-instance Memory SimpleMem where
+instance Memory SimpleMem MemState where
     empty = put clearMemState
     load off bs = do
         m <- State.get

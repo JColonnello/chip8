@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Implementations.DictMemory (
     MemState
 ) where
@@ -12,14 +13,13 @@ import Control.Lens
 import Data.Bits.Extras
 import GHC.Data.Maybe
 import Debug.Trace
-import Control.Monad.IO.Class (MonadIO(liftIO))
 
 type MemState = Map.IntMap Word8
 instance MemoryState MemState where
     init = Map.empty
 
 type DictMem = State MemState
-instance Memory DictMem where
+instance Memory DictMem MemState where
     empty = put Memory.init
     load off_w bs = do
         m <- State.get
