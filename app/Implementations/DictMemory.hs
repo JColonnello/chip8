@@ -7,7 +7,7 @@ module Implementations.DictMemory (
 import qualified Data.IntMap.Strict as Map
 import Data.Word
 import Memory
-import Control.Monad.Trans.State as State
+import Control.Monad.Trans.State.Strict as State
 import Data.ByteString as ByteString
 import Control.Lens
 import Data.Bits.Extras
@@ -16,11 +16,11 @@ import Debug.Trace
 
 type MemState = Map.IntMap Word8
 instance MemoryState MemState where
-    init = Map.empty
+    -- init = Map.empty
 
 type DictMem = State MemState
 instance Memory DictMem MemState where
-    empty = put Memory.init
+    empty = put Map.empty
     load off_w bs = do
         m <- State.get
         let off = fromIntegral off_w

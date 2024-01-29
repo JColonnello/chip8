@@ -4,7 +4,7 @@ module Implementations.SimpleMemory (
     MemState
 ) where
 
-import Control.Monad.Trans.State as State
+import Control.Monad.Trans.State.Strict as State
 import Memory
 import Data.Word
 import GHC.Data.Maybe
@@ -17,7 +17,7 @@ clearMemState :: MemState
 clearMemState = []
 
 instance MemoryState MemState where
-    init = clearMemState
+    -- init = clearMemState
 
 type SimpleMem = State MemState
 

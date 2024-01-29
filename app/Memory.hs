@@ -6,7 +6,7 @@ import Data.Word
 import Control.Monad.State.Class
 
 class MemoryState s where
-    init :: s
+    -- init :: s
 
 class (MemoryState s, MonadState s m) => Memory m s | s -> m where
     empty :: m ()
