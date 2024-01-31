@@ -29,11 +29,11 @@ emulatorStep = do
 
 loadEmulator :: BS.ByteString -> Emulator s ()
 loadEmulator bs = do
-    mem <%=> Memory.empty
-    mem <%=> Memory.load 0 bs
-    mem <%=> Memory.set 0 1
-    mem <%=> Memory.set 1 3
-    mem <%=> Memory.get16 0 >>= traceShowM
+    mem <@> Memory.empty
+    mem <@> Memory.load 0 bs
+    mem <@> Memory.set 0 1
+    mem <@> Memory.set 1 3
+    mem <@> Memory.get16 0 >>= traceShowM
     -- BS.replicate (64*32) 111
     let bitmap = w8 . (`mod` 256) <$> [1..64*32]
     screen .= BS.pack bitmap
