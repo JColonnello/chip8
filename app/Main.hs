@@ -4,75 +4,74 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-missing-fields #-}
 module Main where
 
 import Control.Monad.ST
 import Control.Monad.State.Strict as State
 import qualified Data.Word as Word
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BS.C8
-import Prelude as P
 import Foreign.C.Types
-import Control.Lens (makeLenses)
+import Control.Lens (makeLenses, (^.), set, (%~))
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Maybe (mapMaybe)
+import Debug.Trace (traceM, traceShowM)
+import Data.Bits.Extras (w8)
+import Control.Concurrent (threadDelay)
 
 import Zoom
-
 import Implementations.MVectorMemory
-import Memory
+import qualified Memory
 
 import SDL.Vect
 import qualified SDL
-import SDL
-import Data.Maybe (mapMaybe)
+import SDL (Event, Keycode, EventPayload (KeyboardEvent), InputMotion, Renderer, Texture)
+import SDL.Input
+import SDL.Event
 
-newtype EmulatorData s = EmulatorData { _mem :: MemState s }
+data EmulatorData s = EmulatorData { _mem :: MemState s, _screen :: BS.ByteString }
 makeLenses ''EmulatorData
 
 undefEmulatorData :: EmulatorData s
 undefEmulatorData = undefEmulatorData
 
-type Emulator a = forall s. StateT (EmulatorData s) (ST s) a
+type Emulator s a = StateT (EmulatorData s) (ST s) a
 
-runEmulator :: forall a. Emulator a -> IO a
-runEmulator emulator = stToIO go
-    where   go :: forall i. ST i a
-            go = evalStateT emulator undefEmulatorData
+runEmulator :: EmulatorData RealWorld -> Emulator RealWorld a -> IO (a, EmulatorData RealWorld)
+runEmulator state emulator = stToIO $ runStateT emulator state
 
-emulatorMain :: Emulator Word.Word8
-emulatorMain = do
+emulatorStep :: Emulator s BS.ByteString
+emulatorStep = do
     -- zoom mem $ Memory.set 0 1
     -- zoom mem $ Memory.set 1 3
+    State.modify (screen %~ BS.map (+1))
     -- zoom mem $ sum <$> sequence (Memory.get <$> [1])
-    zoom mem $ Memory.get 0
+    State.gets (^.screen)
 
+texWidth, texHeight :: CInt
+(texWidth, texHeight) = (64, 32)
 screenWidth, screenHeight :: CInt
-(screenWidth, screenHeight) = (640, 480)
+(screenWidth, screenHeight) = (texWidth*10, texHeight*10) 
 
-appLoop :: SDL.Renderer -> SDL.Texture -> Set Keycode -> IO ()
-appLoop renderer texture oldKeys = do
+appLoop :: Renderer -> Texture -> EmulatorData RealWorld -> IO ()
+appLoop renderer texture state = loop Set.empty state where
+    loop oldKeys oldState = do
+        
+        events <- SDL.pollEvents
+        let keys = pressedKeys oldKeys events
 
-    -- bs <- BS.readFile "test.bin"
-    -- BS.C8.putStrLn bs
-    -- i <- runEmulator $ do
-    --     zoom mem Memory.empty
-    --     zoom mem $ Memory.load 0 bs
-    --     emulatorMain
-    -- P.putStrLn "End"
-    -- print i
-    events <- pollEvents
-    let keys = pressedKeys oldKeys events
+        -- Step emulator
+        (rawScreen, state) <- runEmulator oldState emulatorStep
+        let screen = rawScreen;
 
-    -- TODO Step emulator
-    let screen = BS.pack $ P.replicate (fromIntegral $ screenHeight*screenWidth) 111
+        SDL.updateTexture texture Nothing screen texWidth
+        SDL.copy renderer texture Nothing Nothing
+        SDL.present renderer
 
-    SDL.updateTexture texture Nothing screen screenWidth
-    SDL.copy renderer texture Nothing Nothing
-    present renderer
-
-    let exit = hasExit events || elem KeycodeEscape keys
-    unless exit (appLoop renderer texture keys)
+        let exit = hasExit events || elem KeycodeEscape keys
+        threadDelay (1000000 `div` 90)
+        unless exit (loop keys state)
 
 hasExit :: [Event] -> Bool
 hasExit = any (isExit . SDL.eventPayload) where
@@ -94,9 +93,18 @@ main = do
     SDL.initializeAll
     window <- SDL.createWindow "CHIP-8 Emulator" SDL.defaultWindow { SDL.windowInitialSize = V2 screenWidth screenHeight }
     renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
-    texture <- SDL.createTexture renderer SDL.RGB332 SDL.TextureAccessStreaming (V2 64 32)
+    texture <- SDL.createTexture renderer SDL.RGB332 SDL.TextureAccessStreaming (V2 texWidth texHeight)
 
-    appLoop renderer texture Set.empty
+    bs <- BS.readFile "test.bin"
+    initialState <- snd <$> runEmulator (EmulatorData {}) ( do
+        zoom mem Memory.empty
+        zoom mem $ Memory.load 0 bs
+        -- BS.replicate (64*32) 111
+        let bitmap = w8 . (`mod` 256) <$> [1..texWidth*texHeight]
+        State.modify (set screen $ BS.pack bitmap)
+        )
+
+    appLoop renderer texture initialState
 
     SDL.destroyRenderer renderer
     SDL.destroyWindow window
