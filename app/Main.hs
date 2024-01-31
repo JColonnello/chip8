@@ -12,14 +12,16 @@ import Control.Monad.State.Strict as State
 import qualified Data.Word as Word
 import qualified Data.ByteString as BS
 import Foreign.C.Types
-import Control.Lens (makeLenses, (^.), set, (%~))
+import Control.Lens (makeLenses, use)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe (mapMaybe)
 import Debug.Trace (traceM, traceShowM)
 import Data.Bits.Extras (w8)
 import Control.Concurrent (threadDelay)
+import Data.List (singleton)
 
+import Inputs
 import Zoom
 import Implementations.MVectorMemory
 import qualified Memory
@@ -30,7 +32,7 @@ import SDL (Event, Keycode, EventPayload (KeyboardEvent), InputMotion, Renderer,
 import SDL.Input
 import SDL.Event
 
-data EmulatorData s = EmulatorData { _mem :: MemState s, _screen :: BS.ByteString }
+data EmulatorData s = EmulatorData { _mem :: MemState s, _screen :: BS.ByteString, _inputs :: Inputs }
 makeLenses ''EmulatorData
 
 undefEmulatorData :: EmulatorData s
@@ -41,28 +43,33 @@ type Emulator s a = StateT (EmulatorData s) (ST s) a
 runEmulator :: EmulatorData RealWorld -> Emulator RealWorld a -> IO (a, EmulatorData RealWorld)
 runEmulator state emulator = stToIO $ runStateT emulator state
 
-emulatorStep :: Emulator s BS.ByteString
+emulatorStep :: Emulator s ()
 emulatorStep = do
-    -- zoom mem $ Memory.set 0 1
-    -- zoom mem $ Memory.set 1 3
-    State.modify (screen %~ BS.map (+1))
-    -- zoom mem $ sum <$> sequence (Memory.get <$> [1])
-    State.gets (^.screen)
+    inputs ^>>= traceShowM
+    screen %= BS.map (+1)
 
 texWidth, texHeight :: CInt
 (texWidth, texHeight) = (64, 32)
 screenWidth, screenHeight :: CInt
-(screenWidth, screenHeight) = (texWidth*10, texHeight*10) 
+(screenWidth, screenHeight) = (texWidth*10, texHeight*10)
+
+mapMaybeSet :: (Ord a2) => (a1 -> Maybe a2) -> Set a1 -> Set a2
+mapMaybeSet f = Set.fromList . Set.foldl (\b -> maybe b (:b) . f) [] 
 
 appLoop :: Renderer -> Texture -> EmulatorData RealWorld -> IO ()
 appLoop renderer texture state = loop Set.empty state where
     loop oldKeys oldState = do
-        
         events <- SDL.pollEvents
         let keys = pressedKeys oldKeys events
+        let inputKeys = Inputs (mapMaybeSet keyToInput keys)
+
+        let step = do
+                inputs .= inputKeys
+                emulatorStep
+                use screen
 
         -- Step emulator
-        (rawScreen, state) <- runEmulator oldState emulatorStep
+        (rawScreen, state) <- runEmulator oldState step
         let screen = rawScreen;
 
         SDL.updateTexture texture Nothing screen texWidth
@@ -88,6 +95,26 @@ pressedKeys oldKeys events = oldKeys `Set.difference` released `Set.union` press
     keyEvent (KeyboardEvent ke) = Just (keysymKeycode . keyboardEventKeysym $ ke, keyboardEventKeyMotion ke)
     keyEvent _ = Nothing
 
+keyToInput :: Keycode -> Maybe InputKey
+keyToInput key = nToInput <$> case key of 
+    Keycode1 -> Just 0x1
+    Keycode2 -> Just 0x2
+    Keycode3 -> Just 0x3
+    Keycode4 -> Just 0xC
+    KeycodeQ -> Just 0x4
+    KeycodeW -> Just 0x5
+    KeycodeE -> Just 0x6
+    KeycodeR -> Just 0xD
+    KeycodeA -> Just 0x7
+    KeycodeS -> Just 0x8
+    KeycodeD -> Just 0x9
+    KeycodeF -> Just 0xE
+    KeycodeZ -> Just 0xA
+    KeycodeX -> Just 0x0
+    KeycodeC -> Just 0xB
+    KeycodeV -> Just 0xF
+    _ -> Nothing
+
 main :: IO ()
 main = do
     SDL.initializeAll
@@ -97,11 +124,11 @@ main = do
 
     bs <- BS.readFile "test.bin"
     initialState <- snd <$> runEmulator (EmulatorData {}) ( do
-        zoom mem Memory.empty
-        zoom mem $ Memory.load 0 bs
+        mem <%=> Memory.empty
+        mem <%=> Memory.load 0 bs
         -- BS.replicate (64*32) 111
         let bitmap = w8 . (`mod` 256) <$> [1..texWidth*texHeight]
-        State.modify (set screen $ BS.pack bitmap)
+        screen .= BS.pack bitmap
         )
 
     appLoop renderer texture initialState
