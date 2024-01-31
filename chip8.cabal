@@ -27,11 +27,13 @@ executable chip8
         Implementations.SimpleMemory
         Implementations.DictMemory
         Implementations.MVectorMemory
+        Implementations.DictRegisters
         Memory
         Zoom
         Inputs
         CPU
         Emulator
+        Register
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

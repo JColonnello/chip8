@@ -1,7 +1,8 @@
-module CPU (decode, Opcode(..)) where
+module CPU (decode, Opcode(..), OpNNN(..), OpNN(..), OpN(..), OpReg(..)) where
 import Data.Word (Word8, Word16)
 import Data.Bits ((.&.), Bits (shiftR, (.|.), shiftL))
 import Data.Bits.Extras (w8, w16)
+import Register (GeneralRegister (GeneralRegister))
 
 type Nibble = Word8
 data Instruction = Instruction Nibble Nibble Nibble Nibble
@@ -22,7 +23,7 @@ pack3 a b c = shiftL (w16 a) 8 .|. shiftL (w16 b) 4 .|. w16 c
 newtype OpNNN = OpNNN Word16
 newtype OpNN = OpNN Word8
 newtype OpN = OpN Nibble
-newtype OpReg = OpReg Nibble
+newtype OpReg = OpReg GeneralRegister
 data Opcode = 
         ClearScreen
     |   Jump OpNNN
@@ -37,8 +38,8 @@ decode = parse . divide where
     parse (Instruction a b c d) = 
         let nnn = OpNNN $ pack3 b c d
             nn = OpNN $ pack2 c d
-            x = OpReg b
-            y = OpReg c
+            x = OpReg $ GeneralRegister b
+            y = OpReg $ GeneralRegister c
             n = OpN d
         in case (a,b,c,d) of 
 
