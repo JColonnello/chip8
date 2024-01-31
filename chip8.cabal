@@ -30,6 +30,8 @@ executable chip8
         Memory
         Zoom
         Inputs
+        CPU
+        Emulator
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

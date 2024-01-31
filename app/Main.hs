@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -7,46 +6,28 @@
 {-# OPTIONS_GHC -Wno-missing-fields #-}
 module Main where
 
-import Control.Monad.ST
-import Control.Monad.State.Strict as State
 import qualified Data.Word as Word
 import qualified Data.ByteString as BS
 import Foreign.C.Types
-import Control.Lens (makeLenses, use)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe (mapMaybe)
-import Debug.Trace (traceM, traceShowM)
 import Data.Bits.Extras (w8)
 import Control.Concurrent (threadDelay)
 import Data.List (singleton)
 
 import Inputs
 import Zoom
-import Implementations.MVectorMemory
-import qualified Memory
+import Emulator
 
 import SDL.Vect
 import qualified SDL
 import SDL (Event, Keycode, EventPayload (KeyboardEvent), InputMotion, Renderer, Texture)
 import SDL.Input
 import SDL.Event
-
-data EmulatorData s = EmulatorData { _mem :: MemState s, _screen :: BS.ByteString, _inputs :: Inputs }
-makeLenses ''EmulatorData
-
-undefEmulatorData :: EmulatorData s
-undefEmulatorData = undefEmulatorData
-
-type Emulator s a = StateT (EmulatorData s) (ST s) a
-
-runEmulator :: EmulatorData RealWorld -> Emulator RealWorld a -> IO (a, EmulatorData RealWorld)
-runEmulator state emulator = stToIO $ runStateT emulator state
-
-emulatorStep :: Emulator s ()
-emulatorStep = do
-    inputs ^>>= traceShowM
-    screen %= BS.map (+1)
+import Control.Monad.ST (RealWorld, stToIO)
+import Control.Lens (use)
+import Control.Monad (unless)
 
 texWidth, texHeight :: CInt
 (texWidth, texHeight) = (64, 32)
@@ -78,7 +59,7 @@ appLoop renderer texture state = loop Set.empty state where
 
         let exit = hasExit events || elem KeycodeEscape keys
         threadDelay (1000000 `div` 90)
-        unless exit (loop keys state)
+        -- unless exit (loop keys state)
 
 hasExit :: [Event] -> Bool
 hasExit = any (isExit . SDL.eventPayload) where
@@ -123,13 +104,7 @@ main = do
     texture <- SDL.createTexture renderer SDL.RGB332 SDL.TextureAccessStreaming (V2 texWidth texHeight)
 
     bs <- BS.readFile "test.bin"
-    initialState <- snd <$> runEmulator (EmulatorData {}) ( do
-        mem <%=> Memory.empty
-        mem <%=> Memory.load 0 bs
-        -- BS.replicate (64*32) 111
-        let bitmap = w8 . (`mod` 256) <$> [1..texWidth*texHeight]
-        screen .= BS.pack bitmap
-        )
+    initialState <- snd <$> runEmulator (EmulatorData {}) (loadEmulator bs)
 
     appLoop renderer texture initialState
 
