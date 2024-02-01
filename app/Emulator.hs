@@ -18,7 +18,7 @@ import Control.Monad.ST
 import Control.Monad.State.Strict as State
 import Debug.Trace (traceM, traceShowM, traceShowId)
 import Data.Bits.Extras (w8)
-import Data.Word (Word16, Word8)
+import Data.Word (Word16, Word8, Word64)
 import Data.Bool (bool)
 
 
@@ -26,6 +26,7 @@ data EmulatorData s = EmulatorData {
     _mem :: MemState s,
     _screen :: ScreenState s,
     _inputs :: Inputs,
+    _currentTime :: Word64,
     _registers :: RegisterState
 }
 makeLenses ''EmulatorData
@@ -35,13 +36,17 @@ type Emulator s a = StateT (EmulatorData s) (ST s) a
 undefEmulatorData :: EmulatorData s
 undefEmulatorData = undefEmulatorData
 
+fontLocation :: Word16
+fontLocation = 0x50
+
 emulatorStep :: Emulator s ()
 emulatorStep = do
     fetchInstruction >>= executeInstruction . decodeInstruction
 
-loadEmulator :: BS.ByteString -> Emulator s ()
-loadEmulator bs = do
+loadEmulator :: BS.ByteString -> BS.ByteString -> Emulator s ()
+loadEmulator bs font = do
     mem <@> Memory.empty
+    mem <@> Memory.load fontLocation font
     mem <@> Memory.load 0x200 bs
     screen <@> Screen.initialize
     registers <@> Regs.initialize

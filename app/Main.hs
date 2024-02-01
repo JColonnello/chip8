@@ -29,6 +29,7 @@ import SDL.Event
 import Control.Monad.ST (RealWorld, stToIO)
 import Control.Lens (use)
 import Control.Monad (unless)
+import GHC.Clock (getMonotonicTimeNSec)
 
 texWidth, texHeight :: CInt
 (texWidth, texHeight) = (64, 32)
@@ -44,9 +45,11 @@ appLoop renderer texture state = loop Set.empty state where
         events <- SDL.pollEvents
         let keys = pressedKeys oldKeys events
         let inputKeys = Inputs (mapMaybeSet keyToInput keys)
+        time <- getMonotonicTimeNSec
 
         let step = do
                 inputs .= inputKeys
+                currentTime .= time
                 emulatorStep
                 screen <@> Screen.serialize 0x0 0xFF
 
@@ -105,7 +108,8 @@ main = do
     texture <- SDL.createTexture renderer SDL.RGB332 SDL.TextureAccessStreaming (V2 texWidth texHeight)
 
     bs <- BS.readFile "roms/IBM Logo.ch8"
-    initialState <- snd <$> runEmulator (EmulatorData {}) (loadEmulator bs)
+    font <- BS.readFile "roms/font.bin"
+    initialState <- snd <$> runEmulator (EmulatorData {}) (loadEmulator bs font)
 
     appLoop renderer texture initialState
 
