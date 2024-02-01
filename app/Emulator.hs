@@ -12,7 +12,7 @@ import qualified Screen
 import Implementations.DictRegisters
 import Implementations.WordMVScreen (ScreenState)
 
-import Control.Lens (makeLenses, use)
+import Control.Lens (makeLenses, use, (%%=), (.=))
 import qualified Data.ByteString as BS
 import Control.Monad.ST
 import Control.Monad.State.Strict as State
@@ -20,14 +20,16 @@ import Debug.Trace (traceM, traceShowM, traceShowId)
 import Data.Bits.Extras (w8)
 import Data.Word (Word16, Word8, Word64)
 import Data.Bool (bool)
-
+import System.Random ( StdGen, RandomGen (genWord8) )
+import Data.Bits
 
 data EmulatorData s = EmulatorData {
     _mem :: MemState s,
     _screen :: ScreenState s,
     _inputs :: Inputs,
     _currentTime :: Word64,
-    _registers :: RegisterState
+    _registers :: RegisterState,
+    _randomGen :: StdGen
 }
 makeLenses ''EmulatorData
 
@@ -43,14 +45,15 @@ emulatorStep :: Emulator s ()
 emulatorStep = do
     fetchInstruction >>= executeInstruction . decodeInstruction
 
-loadEmulator :: BS.ByteString -> BS.ByteString -> Emulator s ()
-loadEmulator bs font = do
+loadEmulator :: BS.ByteString -> BS.ByteString -> StdGen -> Emulator s ()
+loadEmulator bs font gen = do
     mem <@> Memory.empty
     mem <@> Memory.load fontLocation font
     mem <@> Memory.load 0x200 bs
     screen <@> Screen.initialize
     registers <@> Regs.initialize
     registers <@> Regs.setPtrReg Regs.ProgramCounter 0x200
+    randomGen .= gen
 
 runEmulator :: EmulatorData RealWorld -> Emulator RealWorld a -> IO (a, EmulatorData RealWorld)
 runEmulator state emulator = stToIO $ runStateT emulator state
@@ -76,6 +79,7 @@ executeInstruction op = case traceShowId op of
     InstructionRegNN op (OpReg reg) (OpNN nn) -> case op of
         SetRegisterN                    -> setRegisterN reg nn
         AddRegisterN                    -> addRegisterN reg nn
+        Random                          -> random reg nn
     InstructionReg op (OpReg reg)  -> case op of
         _ -> error "Opcode not implemented"
     ErrorCode                           -> error "Opcode not implemented"
@@ -106,3 +110,8 @@ display _x _y _n = do
     sprite <- mem <@> mapM Memory.get [vi..vi+n-1]
     flipped <- screen <@> Screen.draw sprite x y
     registers <@> Regs.setVarReg Regs.flagRegister (bool 0 1 flipped)
+
+random :: GeneralRegister -> Word8 -> Emulator s ()
+random reg mask = do
+    rnum <- randomGen %%= genWord8
+    registers <@> Regs.setVarReg reg (mask .&. rnum)

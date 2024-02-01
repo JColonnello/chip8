@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Zoom (Zoom.zoom, (<@>), (^>>=), (%=), (.=), (.:), (<^&>)) where
+module Zoom (Zoom.zoom, (<@>), (^>>=), (.:), (<^&>)) where
 
 import Control.Monad.State.Class as SC (MonadState (get), modify, gets) 
 import qualified Control.Lens.Zoom as Z
@@ -45,10 +45,10 @@ instance Monad z => Zoom (Strict.StateT s z) (Strict.StateT t z) s t where
 (<^&>) :: MonadState s m => Getting a s a -> (a -> b) -> m b
 (<^&>) = (<&>) . gets . flip (CL.^.)
 
-(%=) :: MonadState s m => ASetter s s a b -> (a -> b) -> m ()
-(%=) = modify .: (CL.%~)
+-- (%=) :: MonadState s m => ASetter s s a b -> (a -> b) -> m ()
+-- (%=) = modify .: (CL.%~)
 
-(.=) :: MonadState s m => ASetter s s a b -> b -> m ()
-(.=) = modify .: (CL..~)
+-- (.=) :: MonadState s m => ASetter s s a b -> b -> m ()
+-- (.=) = modify .: (CL..~)
 
-infix 0 <@>, ^>>=, %=, .=
+infix 0 <@>, ^>>= -- , %=, .=

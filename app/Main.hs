@@ -27,9 +27,10 @@ import SDL (Event, Keycode, EventPayload (KeyboardEvent), InputMotion, Renderer,
 import SDL.Input
 import SDL.Event
 import Control.Monad.ST (RealWorld, stToIO)
-import Control.Lens (use)
+import Control.Lens (use, (.=))
 import Control.Monad (unless)
 import GHC.Clock (getMonotonicTimeNSec)
+import System.Random (initStdGen)
 
 texWidth, texHeight :: CInt
 (texWidth, texHeight) = (64, 32)
@@ -109,7 +110,8 @@ main = do
 
     bs <- BS.readFile "roms/IBM Logo.ch8"
     font <- BS.readFile "roms/font.bin"
-    initialState <- snd <$> runEmulator (EmulatorData {}) (loadEmulator bs font)
+    random <- initStdGen
+    initialState <- snd <$> runEmulator (EmulatorData {}) (loadEmulator bs font random)
 
     appLoop renderer texture initialState
 
