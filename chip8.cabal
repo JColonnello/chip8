@@ -28,12 +28,14 @@ executable chip8
         Implementations.DictMemory
         Implementations.MVectorMemory
         Implementations.DictRegisters
+        Implementations.WordMVScreen
         Memory
         Zoom
         Inputs
         CPU
         Emulator
         Register
+        Screen
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

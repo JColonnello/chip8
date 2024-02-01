@@ -15,6 +15,7 @@ import Data.Maybe (mapMaybe)
 import Data.Bits.Extras (w8)
 import Control.Concurrent (threadDelay)
 import Data.List (singleton)
+import qualified Screen
 
 import Inputs
 import Zoom
@@ -47,7 +48,7 @@ appLoop renderer texture state = loop Set.empty state where
         let step = do
                 inputs .= inputKeys
                 emulatorStep
-                use screen
+                screen <@> Screen.serialize 0x0 0xFF
 
         -- Step emulator
         (rawScreen, state) <- runEmulator oldState step
@@ -58,8 +59,8 @@ appLoop renderer texture state = loop Set.empty state where
         SDL.present renderer
 
         let exit = hasExit events || elem KeycodeEscape keys
-        threadDelay (1000000 `div` 90)
-        -- unless exit (loop keys state)
+        threadDelay (1000000 `div` 5)
+        unless exit (loop keys state)
 
 hasExit :: [Event] -> Bool
 hasExit = any (isExit . SDL.eventPayload) where
@@ -103,7 +104,7 @@ main = do
     renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
     texture <- SDL.createTexture renderer SDL.RGB332 SDL.TextureAccessStreaming (V2 texWidth texHeight)
 
-    bs <- BS.readFile "test.bin"
+    bs <- BS.readFile "roms/IBM Logo.ch8"
     initialState <- snd <$> runEmulator (EmulatorData {}) (loadEmulator bs)
 
     appLoop renderer texture initialState

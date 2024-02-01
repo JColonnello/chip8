@@ -1,13 +1,11 @@
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 module Implementations.MVectorMemory(MemState) where
 
 import Data.Vector.Unboxed.Mutable (STVector, new, PrimMonad (PrimState), MVector, IOVector, drop, length, generate, copy, readMaybe, write, slice)
 import Data.Word (Word8)
 import Memory
-import Control.Monad.ST (ST, runST)
+import Control.Monad.ST.Strict (ST, runST)
 import Control.Monad.Trans.State.Strict as State
 import qualified Data.ByteString as ByteString
 import Control.Lens

@@ -8,20 +8,23 @@ import Zoom
 import CPU
 import qualified Register as Regs
 import Register (GeneralRegister)
+import qualified Screen
 import Implementations.DictRegisters
+import Implementations.WordMVScreen (ScreenState)
 
 import Control.Lens (makeLenses, use)
 import qualified Data.ByteString as BS
 import Control.Monad.ST
 import Control.Monad.State.Strict as State
-import Debug.Trace (traceM, traceShowM)
+import Debug.Trace (traceM, traceShowM, traceShowId)
 import Data.Bits.Extras (w8)
 import Data.Word (Word16, Word8)
+import Data.Bool (bool)
 
 
 data EmulatorData s = EmulatorData {
     _mem :: MemState s,
-    _screen :: BS.ByteString,
+    _screen :: ScreenState s,
     _inputs :: Inputs,
     _registers :: RegisterState
 }
@@ -34,20 +37,15 @@ undefEmulatorData = undefEmulatorData
 
 emulatorStep :: Emulator s ()
 emulatorStep = do
-    -- inputs ^>>= traceShowM
     fetchInstruction >>= executeInstruction . decodeInstruction
-    -- screen %= BS.map (+1)
 
 loadEmulator :: BS.ByteString -> Emulator s ()
 loadEmulator bs = do
     mem <@> Memory.empty
-    mem <@> Memory.load 0 bs
-    mem <@> Memory.set 0 1
-    mem <@> Memory.set 1 3
-    mem <@> Memory.get16 0 >>= traceShowM
-    -- BS.replicate (64*32) 111
-    let bitmap = w8 . (`mod` 256) <$> [1..64*32]
-    screen .= BS.pack bitmap
+    mem <@> Memory.load 0x200 bs
+    screen <@> Screen.initialize
+    registers <@> Regs.initialize
+    registers <@> Regs.setPtrReg Regs.ProgramCounter 0x200
 
 runEmulator :: EmulatorData RealWorld -> Emulator RealWorld a -> IO (a, EmulatorData RealWorld)
 runEmulator state emulator = stToIO $ runStateT emulator state
@@ -61,15 +59,16 @@ fetchInstruction = do
 decodeInstruction :: Word16 -> Opcode
 decodeInstruction = decode
 
-
 executeInstruction :: Opcode -> Emulator s ()
-executeInstruction op = case op of
+executeInstruction op = case traceShowId op of
     Jump (OpNNN nnn)                    -> jump nnn
     SetRegister (OpReg reg) (OpNN nn)   -> setRegister reg nn
     AddRegister (OpReg reg) (OpNN nn)   -> addRegister reg nn
     SetIndex (OpNNN nnn)                -> setIndex nnn
-    _                                   -> return ()
-    
+    ClearScreen                         -> clearScreen
+    Display (OpReg x) (OpReg y) (OpN n) -> display x y n
+    _                                   -> error "Opcode not implemented"
+
 jump :: Word16 -> Emulator s ()
 jump nnn = registers <@> Regs.setPtrReg Regs.ProgramCounter nnn
 
@@ -83,3 +82,16 @@ addRegister :: GeneralRegister -> Word8 -> Emulator s ()
 addRegister reg nn = do
     v <- registers <@> Regs.getVarReg reg
     registers <@> Regs.setVarReg reg (v+nn)
+
+clearScreen :: Emulator s ()
+clearScreen = screen <@> Screen.clear
+
+display :: GeneralRegister -> GeneralRegister -> Word8 -> Emulator s ()
+display _x _y _n = do
+    let n = fromIntegral _n
+    x <- registers <@> Regs.getVarReg _x
+    y <- registers <@> Regs.getVarReg _y
+    vi <- registers <@> Regs.getPtrReg Regs.IndexRegister
+    sprite <- mem <@> mapM Memory.get [vi..vi+n-1]
+    flipped <- screen <@> Screen.draw sprite x y
+    registers <@> Regs.setVarReg Regs.flagRegister (bool 0 1 flipped)
