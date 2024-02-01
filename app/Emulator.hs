@@ -66,13 +66,19 @@ decodeInstruction = decode
 
 executeInstruction :: Opcode -> Emulator s ()
 executeInstruction op = case traceShowId op of
-    Jump (OpNNN nnn)                    -> jump nnn
-    SetRegister (OpReg reg) (OpNN nn)   -> setRegister reg nn
-    AddRegister (OpReg reg) (OpNN nn)   -> addRegister reg nn
-    SetIndex (OpNNN nnn)                -> setIndex nnn
     ClearScreen                         -> clearScreen
     Display (OpReg x) (OpReg y) (OpN n) -> display x y n
-    _                                   -> error "Opcode not implemented"
+    Instruction2Regs op (OpReg x) (OpReg y) -> case op of
+        _ -> error "Opcode not implemented"
+    InstructionNNN op (OpNNN nnn) -> case op of
+        Jump                            -> jump nnn
+        SetIndex                        -> setIndex nnn
+    InstructionRegNN op (OpReg reg) (OpNN nn) -> case op of
+        SetRegisterN                    -> setRegisterN reg nn
+        AddRegisterN                    -> addRegisterN reg nn
+    InstructionReg op (OpReg reg)  -> case op of
+        _ -> error "Opcode not implemented"
+    ErrorCode                           -> error "Opcode not implemented"
 
 jump :: Word16 -> Emulator s ()
 jump nnn = registers <@> Regs.setPtrReg Regs.ProgramCounter nnn
@@ -80,11 +86,11 @@ jump nnn = registers <@> Regs.setPtrReg Regs.ProgramCounter nnn
 setIndex :: Word16 -> Emulator s ()
 setIndex nnn = registers <@> Regs.setPtrReg Regs.IndexRegister nnn
 
-setRegister :: GeneralRegister -> Word8 -> Emulator s ()
-setRegister reg nn = registers <@> Regs.setVarReg reg nn
+setRegisterN :: GeneralRegister -> Word8 -> Emulator s ()
+setRegisterN reg nn = registers <@> Regs.setVarReg reg nn
 
-addRegister :: GeneralRegister -> Word8 -> Emulator s ()
-addRegister reg nn = do
+addRegisterN :: GeneralRegister -> Word8 -> Emulator s ()
+addRegisterN reg nn = do
     v <- registers <@> Regs.getVarReg reg
     registers <@> Regs.setVarReg reg (v+nn)
 
