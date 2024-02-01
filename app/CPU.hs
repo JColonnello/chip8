@@ -20,10 +20,10 @@ pack2 a b = shiftL a 4 .|. b
 pack3 :: Nibble -> Nibble -> Nibble -> Word16
 pack3 a b c = shiftL (w16 a) 8 .|. shiftL (w16 b) 4 .|. w16 c
 
-newtype OpNNN = OpNNN Word16
-newtype OpNN = OpNN Word8
-newtype OpN = OpN Nibble
-newtype OpReg = OpReg GeneralRegister
+newtype OpNNN = OpNNN Word16 deriving (Show)
+newtype OpNN = OpNN Word8 deriving (Show)
+newtype OpN = OpN Nibble deriving (Show)
+newtype OpReg = OpReg GeneralRegister deriving (Show)
 data Opcode = 
         ClearScreen
     |   Jump OpNNN
@@ -32,6 +32,7 @@ data Opcode =
     |   SetIndex OpNNN
     |   Display OpReg OpReg OpN
     |   ErrorCode
+    deriving (Show)
 
 decode :: Word16 -> Opcode
 decode = parse . divide where
