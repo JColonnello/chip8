@@ -3,6 +3,7 @@ module Register(
     PointerRegister(..),
     GeneralRegister(..),
     Registers(..),
+    nToRegG,
     flagRegister
 ) where
 import Data.Word
@@ -13,7 +14,7 @@ import Data.Bits.Extras (w8)
 data PointerRegister = ProgramCounter | IndexRegister deriving (Eq, Ord, Show)
 newtype GeneralRegister = GeneralRegister { regGtoN :: Word8 } deriving (Eq, Ord, Show)
 
-ntoRegG n = assert (n >= 0 && n <= 0xF) $ GeneralRegister $ w8 n
+nToRegG n = assert (n >= 0 && n <= 0xF) $ GeneralRegister $ w8 n
 flagRegister = GeneralRegister 0xF
 
 class (MonadState s m) => Registers m s | s -> m where

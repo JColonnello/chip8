@@ -1,15 +1,21 @@
 module Inputs where
 import Data.Set as Set
 import Control.Exception (assert)
+import Data.Bits.Extras (w8)
+import Data.Word (Word8)
 
-newtype InputKey = InputKey { number :: Int } deriving (Eq, Ord, Show)
+newtype InputKey = InputKey { number :: Word8 } deriving (Eq, Ord, Show)
 newtype Inputs = Inputs { keys :: Set InputKey } deriving (Show)
 
-nToInput :: Int -> InputKey
-nToInput n  = assert(n >= 0 || n <= 15) $ InputKey n
+nToInput :: Integral a => a -> InputKey
+-- nToInput n  = assert(n >= 0 || n <= 15) . InputKey . w8 $ n
+nToInput = InputKey . w8
 
-inputToN :: InputKey -> Int
+inputToN :: InputKey -> Word8
 inputToN = number
 
-isPressed :: InputKey -> Inputs -> Bool
-isPressed key = elem key . keys
+isPressed :: Inputs -> InputKey -> Bool
+isPressed = flip elem . keys
+
+firstPressed :: Inputs -> Maybe InputKey
+firstPressed = lookupMin . keys
