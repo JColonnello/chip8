@@ -137,9 +137,9 @@ decimalConv reg = do
     vi <- registers <@> Regs.getPtrReg Regs.IndexRegister
     let (c1,r1) = v `divMod` 10
     let (c2,r2) = c1 `divMod` 10
-    mem <@> Memory.set vi r1
+    mem <@> Memory.set vi c2
     mem <@> Memory.set (vi+1) r2
-    mem <@> Memory.set (vi+2) c2
+    mem <@> Memory.set (vi+2) r1
 
 fontChar :: GeneralRegister -> Emulator s ()
 fontChar = getReg >=> setIndex . (+fontLocation) . w16 . (*5) . (0xF .&.)
