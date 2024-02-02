@@ -128,6 +128,7 @@ main = do
     random <- initStdGen
     initialState <- snd <$> runEmulator (EmulatorData {}) (loadEmulator bs font random)
 
+    SDL.present renderer
     appLoop renderer texture initialState
 
     SDL.destroyRenderer renderer
