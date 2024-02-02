@@ -112,7 +112,8 @@ main = do
     renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
     texture <- SDL.createTexture renderer SDL.RGB332 SDL.TextureAccessStreaming (V2 texWidth texHeight)
 
-    bs <- BS.readFile "roms/IBM Logo.ch8"
+    romFile <- head <$> getArgs
+    bs <- BS.readFile romFile
     font <- BS.readFile "roms/font.bin"
     random <- initStdGen
     initialState <- snd <$> runEmulator (EmulatorData {}) (loadEmulator bs font random)
