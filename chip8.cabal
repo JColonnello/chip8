@@ -29,6 +29,7 @@ executable chip8
         Implementations.MVectorMemory
         Implementations.DictRegisters
         Implementations.WordMVScreen
+        Implementations.SimpleTimer
         Memory
         Zoom
         Inputs
@@ -36,6 +37,7 @@ executable chip8
         Emulator
         Register
         Screen
+        Timer
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

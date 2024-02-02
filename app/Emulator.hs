@@ -9,6 +9,7 @@ import CPU
 import qualified Register as Regs
 import Register (GeneralRegister)
 import qualified Screen
+import qualified Timer
 import Implementations.DictRegisters
 import Implementations.WordMVScreen (ScreenState)
 
@@ -25,15 +26,16 @@ import Data.Bits
 import GHC.Data.Maybe (orElse)
 import Data.Function (on)
 import Control.Applicative (liftA2)
+import Implementations.SimpleTimer (TimerState)
 
 data EmulatorData s = EmulatorData {
     _mem :: MemState s,
     _screen :: ScreenState s,
     _inputs :: Inputs,
-    _currentTime :: Word64,
     _registers :: RegisterState,
     _randomGen :: StdGen,
-    _stack :: [Word16]
+    _stack :: [Word16],
+    _timer :: TimerState
 }
 makeLenses ''EmulatorData
 
@@ -58,6 +60,7 @@ loadEmulator bs font gen = do
     registers <@> Regs.initialize
     registers <@> Regs.setPtrReg Regs.ProgramCounter 0x200
     randomGen .= gen
+    timer <@> Timer.initialize
 
 runEmulator :: EmulatorData RealWorld -> Emulator RealWorld a -> IO (a, EmulatorData RealWorld)
 runEmulator state emulator = stToIO $ runStateT emulator state
@@ -78,7 +81,7 @@ getReg :: GeneralRegister -> Emulator s Word8
 getReg x = registers <@> Regs.getVarReg x
 
 executeInstruction :: Opcode -> Emulator s ()
-executeInstruction op = case traceShowId op of
+executeInstruction op = case op of
     ClearScreen                         -> clearScreen
     Display (OpReg x) (OpReg y) (OpN n) -> display x y n
     Return                              -> return'
@@ -115,7 +118,24 @@ executeInstruction op = case traceShowId op of
         DecimalConv                     -> decimalConv reg
         StoreRegisters                  -> storeRegisters reg
         LoadRegisters                   -> loadRegisters reg
+        GetTimer                        -> getTimer reg
+        SetDelayTimer                   -> setDelayTimer reg
+        SetSoundTimer                   -> setSoundTimer reg
     ErrorCode                           -> error "Opcode not implemented"
+
+setSoundTimer :: GeneralRegister -> Emulator s ()
+setSoundTimer reg = do
+    v <- getReg reg
+    timer <@> Timer.setSoundTimer v
+
+setDelayTimer :: GeneralRegister -> Emulator s ()
+setDelayTimer reg = do
+    v <- getReg reg
+    timer <@> Timer.setDelayTimer v
+
+
+getTimer :: GeneralRegister -> Emulator s ()
+getTimer reg = (timer <@> Timer.getDelayTimer) >>= setRegisterN reg
 
 storeRegisters :: GeneralRegister -> Emulator s ()
 storeRegisters reg = do
@@ -214,6 +234,15 @@ jumpOffset :: Word16 -> Emulator s ()
 jumpOffset off = do
     pc <- registers <@> Regs.getPtrReg Regs.ProgramCounter
     jump $ pc + off
+
+hang = hang
+
+-- jump :: Word16 -> Emulator s ()
+-- jump nnn = do
+--     pc <- registers <@> Regs.getPtrReg Regs.ProgramCounter
+--     if nnn + 2 == pc
+--         then hang
+--         else registers <@> Regs.setPtrReg Regs.ProgramCounter nnn
 
 jump :: Word16 -> Emulator s ()
 jump nnn = registers <@> Regs.setPtrReg Regs.ProgramCounter nnn

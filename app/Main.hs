@@ -21,7 +21,7 @@ import Inputs
 import Zoom
 import Emulator
 
-import SDL.Vect
+import SDL.Vect (V2(..))
 import qualified SDL
 import SDL (Event, Keycode, EventPayload (KeyboardEvent), InputMotion, Renderer, Texture)
 import SDL.Input
@@ -31,6 +31,9 @@ import Control.Lens (use, (.=))
 import Control.Monad (unless)
 import GHC.Clock (getMonotonicTimeNSec)
 import System.Random (initStdGen)
+import Timer (Timer(setNSTime, getSoundTimer))
+import System.Environment (getArgs)
+import Debug.Trace (traceShowId, traceShow, trace)
 
 texWidth, texHeight :: CInt
 (texWidth, texHeight) = (64, 32)
@@ -50,20 +53,21 @@ appLoop renderer texture state = loop Set.empty state where
 
         let step = do
                 inputs .= inputKeys
-                currentTime .= time
+                timer <@> setNSTime time
                 emulatorStep
-                screen <@> Screen.serialize 0x0 0xFF
+                screenBS <- screen <@> Screen.serialize 0x0 0xFF
+                soundtimer <- timer <@> Timer.getSoundTimer
+                return (screenBS, fromIntegral soundtimer)
 
         -- Step emulator
-        (rawScreen, state) <- runEmulator oldState step
-        let screen = rawScreen;
+        ((rawScreen, soundTimer), state) <- runEmulator oldState step
 
-        SDL.updateTexture texture Nothing screen texWidth
+        SDL.updateTexture texture Nothing rawScreen texWidth
         SDL.copy renderer texture Nothing Nothing
         SDL.present renderer
 
         let exit = hasExit events || elem KeycodeEscape keys
-        threadDelay (1000000 `div` 5)
+        threadDelay (1000000 `div` 700)
         unless exit (loop keys state)
 
 hasExit :: [Event] -> Bool
@@ -72,7 +76,7 @@ hasExit = any (isExit . SDL.eventPayload) where
     isExit _ = False
 
 pressedKeys :: Set Keycode -> [Event] -> Set Keycode
-pressedKeys oldKeys events = oldKeys `Set.difference` released `Set.union` pressed where
+pressedKeys oldKeys events = (oldKeys `Set.union` pressed) `Set.difference` released where
     pressed = filterEvent Pressed
     released = filterEvent Released
     filterEvent e = Set.fromList $ fst <$> filter ((== e) . snd) keyEvents
