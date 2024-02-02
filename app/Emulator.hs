@@ -17,7 +17,7 @@ import Control.Lens (makeLenses, use, (%%=), (.=), (%=), uncons)
 import qualified Data.ByteString as BS
 import Control.Monad.ST
 import Control.Monad.State.Strict as State
-import Debug.Trace (traceM, traceShowM, traceShowId)
+import Debug.Trace (traceM, traceShowM, traceShowId, trace)
 import Data.Bits.Extras (w8, w16)
 import Data.Word (Word16, Word8, Word64)
 import Data.Bool (bool)
@@ -120,7 +120,7 @@ executeInstruction op = case op of
         LoadRegisters                   -> loadRegisters reg
         GetTimer                        -> getTimer reg
         SetDelayTimer                   -> setDelayTimer reg
-        SetSoundTimer                   -> setSoundTimer reg
+        SetSoundTimer                   -> trace "Sound" setSoundTimer reg
     ErrorCode                           -> error "Opcode not implemented"
 
 setSoundTimer :: GeneralRegister -> Emulator s ()

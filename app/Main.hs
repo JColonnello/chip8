@@ -28,12 +28,13 @@ import SDL.Input
 import SDL.Event
 import Control.Monad.ST (RealWorld, stToIO)
 import Control.Lens (use, (.=))
-import Control.Monad (unless)
+import Control.Monad (unless, when)
 import GHC.Clock (getMonotonicTimeNSec)
 import System.Random (initStdGen)
 import Timer (Timer(setNSTime, getSoundTimer))
 import System.Environment (getArgs)
 import Debug.Trace (traceShowId, traceShow, trace, traceM)
+import Sound.Honk
 
 texWidth, texHeight :: CInt
 (texWidth, texHeight) = (64, 32)
@@ -41,7 +42,7 @@ screenWidth, screenHeight :: CInt
 (screenWidth, screenHeight) = (texWidth*10, texHeight*10)
 
 mapMaybeSet :: (Ord a2) => (a1 -> Maybe a2) -> Set a1 -> Set a2
-mapMaybeSet f = Set.fromList . Set.foldl (\b -> maybe b (:b) . f) [] 
+mapMaybeSet f = Set.fromList . Set.foldl (\b -> maybe b (:b) . f) []
 
 appLoop :: Renderer -> Texture -> EmulatorData RealWorld -> IO ()
 appLoop renderer texture state = loop Set.empty state where
@@ -62,6 +63,10 @@ appLoop renderer texture state = loop Set.empty state where
 
         -- Step emulator
         ((rawScreen, soundTimer), state) <- runEmulator oldState step
+
+        -- when (soundTimer > 0) $
+        --         let duration = fromIntegral soundTimer / 60
+        --         in playOne $ Note duration 110
 
         case rawScreen of
             Nothing -> return ()
@@ -91,7 +96,7 @@ pressedKeys oldKeys events = (oldKeys `Set.union` pressed) `Set.difference` rele
     keyEvent _ = Nothing
 
 keyToInput :: Keycode -> Maybe InputKey
-keyToInput key = nToInput <$> case key of 
+keyToInput key = nToInput <$> case key of
     Keycode1 -> Just 0x1
     Keycode2 -> Just 0x2
     Keycode3 -> Just 0x3
