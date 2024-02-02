@@ -33,7 +33,7 @@ import GHC.Clock (getMonotonicTimeNSec)
 import System.Random (initStdGen)
 import Timer (Timer(setNSTime, getSoundTimer))
 import System.Environment (getArgs)
-import Debug.Trace (traceShowId, traceShow, trace)
+import Debug.Trace (traceShowId, traceShow, trace, traceM)
 
 texWidth, texHeight :: CInt
 (texWidth, texHeight) = (64, 32)
@@ -55,19 +55,24 @@ appLoop renderer texture state = loop Set.empty state where
                 inputs .= inputKeys
                 timer <@> setNSTime time
                 emulatorStep
-                screenBS <- screen <@> Screen.serialize 0x0 0xFF
+                dirtyScreen <- screen <@> Screen.drawn
+                screenBS <- if dirtyScreen then Just <$> (screen <@> Screen.serialize 0x0 0xFF) else return Nothing
                 soundtimer <- timer <@> Timer.getSoundTimer
                 return (screenBS, fromIntegral soundtimer)
 
         -- Step emulator
         ((rawScreen, soundTimer), state) <- runEmulator oldState step
 
-        SDL.updateTexture texture Nothing rawScreen texWidth
-        SDL.copy renderer texture Nothing Nothing
-        SDL.present renderer
+        case rawScreen of
+            Nothing -> return ()
+            Just bs -> do
+                -- traceM "Draw"
+                SDL.updateTexture texture Nothing bs texWidth
+                SDL.copy renderer texture Nothing Nothing
+                SDL.present renderer
 
         let exit = hasExit events || elem KeycodeEscape keys
-        threadDelay (1000000 `div` 700)
+        threadDelay (1000000 `div` 1000)
         unless exit (loop keys state)
 
 hasExit :: [Event] -> Bool

@@ -15,20 +15,23 @@ import Data.Bits.Extras (w64)
 import Control.Lens (imapM)
 import Debug.Trace (traceShowId)
 
-newtype ScreenData' m = ScreenData' {
+data ScreenData' m = ScreenData' {
+    dirty :: Bool,
     vector :: MVector (PrimState m) Word64
 }
 type ScreenState s = ScreenData' (ST s)
 
+setDirty b s = s { dirty = b }
+
 type MVScreen s = (StateT (ScreenData' (ST s)) (ST s))
 instance Screen (MVScreen s) (ScreenData' (ST s)) where
-    initialize = new 32 >>= State.put . ScreenData'
+    initialize = new 32 >>= State.put . ScreenData' True
     clear = State.get >>= flip set 0 . vector
     serialize c0 c1 =
         let c = bool c0 c1
             foldW w = map (c . testBit w) [63,62..0]
             foldV = V.foldr ((++) . foldW) []
-        in  pack <$> (State.get >>= foldV . vector)
+        in  State.modify (setDirty False) >> pack <$> (State.get >>= foldV . vector)
     draw _sprite _x _y =
         let x = fromIntegral _x .&. 63
             y = fromIntegral _y .&. 31
@@ -39,4 +42,5 @@ instance Screen (MVScreen s) (ScreenData' (ST s)) where
                 let shiftedS = shifted sr
                 V.write v (y+i) (row `xor` shiftedS)
                 return $ popCount (row .&. shiftedS) > 0
-        in State.get >>= (\v -> or <$> imapM (drawRow v) sprite) . vector
+        in State.modify (setDirty True) >> State.get >>= (\v -> or <$> imapM (drawRow v) sprite) . vector
+    drawn = State.gets dirty

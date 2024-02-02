@@ -10,3 +10,4 @@ class (MonadState s m) => Screen m s | s -> m where
     clear :: m ()
     draw :: [Word8] -> Word8 -> Word8 -> m Bool
     serialize :: Word8 -> Word8 -> m ByteString
+    drawn :: m Bool
