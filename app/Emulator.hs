@@ -276,13 +276,20 @@ random reg mask = do
     rnum <- randomGen %%= genWord8
     registers <@> Regs.setVarReg reg (mask .&. rnum)
 
+pop :: [Word16] -> (Word16,[Word16])
+pop (x:xs) = (x,xs)
+pop [] = (0,[])
+
+push :: Word16 -> [Word16] -> [Word16]
+push x xs = x:xs
+
 call :: Word16 -> Emulator s ()
 call addr = do
     pc <- registers <@> Regs.getPtrReg Regs.ProgramCounter
-    stack %= (pc:)
+    stack %= push pc
     jump addr
 
 return' :: Emulator s ()
 return' = do
-    addr <- stack %%= ((`orElse` (0,[]))  . uncons)
+    addr <- stack %%= pop
     jump addr
