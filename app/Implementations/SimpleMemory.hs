@@ -16,9 +16,6 @@ type MemState = [(Word16, Word8)]
 clearMemState :: MemState
 clearMemState = []
 
-instance MemoryState MemState where
-    -- init = clearMemState
-
 type SimpleMem = State MemState
 
 instance Memory SimpleMem MemState where

@@ -27,8 +27,6 @@ type MemState s = MemState' (ST s)
 --         v <- new 4096 
 --         return $ MemState' v
 
-instance MemoryState (MemState' s) where
-
 type MVMem s = (StateT (MemState' (ST s)) (ST s))
 instance Memory (MVMem s) (MemState' (ST s)) where
     empty = do

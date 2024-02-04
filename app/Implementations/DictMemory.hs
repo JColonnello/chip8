@@ -15,8 +15,6 @@ import GHC.Data.Maybe
 import Debug.Trace
 
 type MemState = Map.IntMap Word8
-instance MemoryState MemState where
-    -- init = Map.empty
 
 type DictMem = State MemState
 instance Memory DictMem MemState where

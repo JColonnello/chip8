@@ -9,10 +9,7 @@ import Control.Monad (liftM2)
 import Data.Bits.Extras (w16)
 import Data.Function (on)
 
-class MemoryState s where
-    -- init :: s
-
-class (MemoryState s, MonadState s m) => Memory m s | s -> m where
+class (MonadState s m) => Memory m s | s -> m where
     empty :: m ()
     load :: Word16 -> ByteString -> m ()
     get :: Word16 -> m Word8
